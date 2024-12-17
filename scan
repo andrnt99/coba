@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+</head>
+<body>
+    <h1>Barcode Scanner</h1>
+    <div id="scanner-container" style="width: 100%; height: 300px; border: 1px solid black;"></div>
+    <p id="barcode-result">Result: <span id="result"></span></p>
+    <p id="error-message" style="color: red;"></p>
+
+    <script>
+        const scannedResults = [];
+
+        function saveToCSV(scannedResults) {
+            const csvContent = "data:text/csv;charset=utf-8," +
+                scannedResults.map(e => `${e}`).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "scanned_barcodes.csv");
+            document.body.appendChild(link);
+
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    constraints: {
+                        facingMode: "environment", // Use back camera
+                    },
+                    target: document.querySelector('#scanner-container') // Attach scanner to container
+                },
+                decoder: {
+                    readers: ["code_128_reader"] // Supports Code 128 barcodes (can be customized)
+                }
+            }, function(err) {
+                if (err) {
+                    console.error(err);
+                    document.getElementById('error-message').textContent = "Error initializing scanner. Please check camera permissions.";
+                    return;
+                }
+                console.log("Scanner initialized.");
+                Quagga.start();
+            });
+        }
+
+        // Listen for barcode detection
+        Quagga.onDetected(function(data) {
+            const code = data.codeResult.code;
+            if (!scannedResults.includes(code)) {
+                scannedResults.push(code);
+                document.getElementById('result').textContent = code;
+                console.log(`Barcode detected: ${code}`);
+                saveToCSV(scannedResults); // Automatically save to CSV on detection
+            }
+        });
+
+        // Ensure camera permission
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(() => {
+                startScanner();
+            })
+            .catch(err => {
+                console.error("Camera access denied:", err);
+                document.getElementById('error-message').textContent = "Camera access denied. Please allow camera permissions.";
+            });
+    </script>
+</body>
+</html>
